@@ -52,6 +52,6 @@ keylogger.exe
 Feel free to open a pull request or suggest improvements!  However, please remember that this is a basic example and lacks many features of a robust keylogger (e.g., stealth mode, handling special keys).  Enhancements should focus on making the code more robust and improving its security features (if used for legitimate testing purposes).  Adding more advanced features should carefully consider ethical implications.
 
 
-### **Developer Signature** ✍️
+### **Developer** ✍️
 
 Developer: **Sunny** | GitHub: **[JustM3Sunny](https://github.com/JustM3Sunny)**
